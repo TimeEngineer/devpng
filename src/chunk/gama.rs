@@ -1,10 +1,27 @@
 // Imports.
+use crate::crc::{Chunk, ChunkMut};
 use std::convert::TryInto;
 // Structures.
-pub(crate) struct Gama<'a>(&'a [u8]);
+pub struct Gama<'a>(&'a [u8]);
+pub struct GamaMut<'a>(&'a mut [u8]);
 // Implementations.
+impl<'a> Chunk for Gama<'a> {
+    fn inner(&self) -> &[u8] {
+        self.0
+    }
+}
+impl<'a> ChunkMut for GamaMut<'a> {
+    fn inner(&mut self) -> &mut [u8] {
+        self.0
+    }
+}
 impl<'a> Gama<'a> {
-    pub(crate) fn from(buf: &'a [u8]) -> Self {
+    pub fn from(buf: &'a [u8]) -> Self {
+        Self(buf)
+    }
+}
+impl<'a> GamaMut<'a> {
+    pub fn from(buf: &'a mut [u8]) -> Self {
         Self(buf)
     }
 }

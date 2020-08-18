@@ -1,11 +1,28 @@
 // Imports.
+use crate::crc::{Chunk, ChunkMut};
 use crate::datastream::ColourType;
 use std::convert::TryInto;
 // Structures.
-pub(crate) struct Trns<'a>(&'a [u8], ColourType);
+pub struct Trns<'a>(&'a [u8], ColourType);
+pub struct TrnsMut<'a>(&'a mut [u8], ColourType);
 // Implementations.
+impl<'a> Chunk for Trns<'a> {
+    fn inner(&self) -> &[u8] {
+        self.0
+    }
+}
+impl<'a> ChunkMut for TrnsMut<'a> {
+    fn inner(&mut self) -> &mut [u8] {
+        self.0
+    }
+}
 impl<'a> Trns<'a> {
-    pub(crate) fn from(buf: &'a [u8], colour: ColourType) -> Self {
+    pub fn from(buf: &'a [u8], colour: ColourType) -> Self {
+        Self(buf, colour)
+    }
+}
+impl<'a> TrnsMut<'a> {
+    pub fn from(buf: &'a mut [u8], colour: ColourType) -> Self {
         Self(buf, colour)
     }
 }

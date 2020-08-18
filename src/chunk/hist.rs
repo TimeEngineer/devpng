@@ -1,10 +1,27 @@
 // Imports.
+use crate::crc::{Chunk, ChunkMut};
 use std::convert::TryInto;
 // Strutures.
-pub(crate) struct Hist<'a>(&'a [u8]);
+pub struct Hist<'a>(&'a [u8]);
+pub struct HistMut<'a>(&'a mut [u8]);
 // Implementations.
+impl<'a> Chunk for Hist<'a> {
+    fn inner(&self) -> &[u8] {
+        self.0
+    }
+}
+impl<'a> ChunkMut for HistMut<'a> {
+    fn inner(&mut self) -> &mut [u8] {
+        self.0
+    }
+}
 impl<'a> Hist<'a> {
-    pub(crate) fn from(buf: &'a [u8]) -> Self {
+    pub fn from(buf: &'a [u8]) -> Self {
+        Self(buf)
+    }
+}
+impl<'a> HistMut<'a> {
+    pub fn from(buf: &'a mut [u8]) -> Self {
         Self(buf)
     }
 }

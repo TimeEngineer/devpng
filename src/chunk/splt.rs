@@ -1,10 +1,27 @@
 // Imports.
+use crate::crc::{Chunk, ChunkMut};
 use std::convert::TryInto;
 // Structures.
-pub(crate) struct Splt<'a>(&'a [u8]);
+pub struct Splt<'a>(&'a [u8]);
+pub struct SpltMut<'a>(&'a mut [u8]);
 // Implementations.
+impl<'a> Chunk for Splt<'a> {
+    fn inner(&self) -> &[u8] {
+        self.0
+    }
+}
+impl<'a> ChunkMut for SpltMut<'a> {
+    fn inner(&mut self) -> &mut [u8] {
+        self.0
+    }
+}
 impl<'a> Splt<'a> {
-    pub(crate) fn from(buf: &'a [u8]) -> Self {
+    pub fn from(buf: &'a [u8]) -> Self {
+        Self(buf)
+    }
+}
+impl<'a> SpltMut<'a> {
+    pub fn from(buf: &'a mut [u8]) -> Self {
         Self(buf)
     }
 }

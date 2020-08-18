@@ -1,10 +1,27 @@
 // Imports.
+use crate::crc::{Chunk, ChunkMut};
 use std::convert::TryInto;
 // Strucutures.
-pub(crate) struct Idat<'a>(&'a [u8]);
+pub struct Idat<'a>(&'a [u8]);
+pub struct IdatMut<'a>(&'a mut [u8]);
 // Implementations.
+impl<'a> Chunk for Idat<'a> {
+    fn inner(&self) -> &[u8] {
+        self.0
+    }
+}
+impl<'a> ChunkMut for IdatMut<'a> {
+    fn inner(&mut self) -> &mut [u8] {
+        self.0
+    }
+}
 impl<'a> Idat<'a> {
-    pub(crate) fn from(buf: &'a [u8]) -> Self {
+    pub fn from(buf: &'a [u8]) -> Self {
+        Self(buf)
+    }
+}
+impl<'a> IdatMut<'a> {
+    pub fn from(buf: &'a mut [u8]) -> Self {
         Self(buf)
     }
 }

@@ -1,14 +1,30 @@
 //! # DataStream
 
 // Imports.
-use std::convert::TryInto;
-// use crate::crc::Crc;
 use crate::chunk::{
-    bkgd::Bkgd, chrm::Chrm, gama::Gama, hist::Hist, iccp::Iccp, idat::Idat, iend::Iend, ihdr::Ihdr,
-    itxt::Itxt, phys::Phys, plte::Plte, sbit::Sbit, splt::Splt, srgb::Srgb, text::Text, time::Time,
-    trns::Trns, ztxt::Ztxt,
+    bkgd::{Bkgd, BkgdMut},
+    chrm::{Chrm, ChrmMut},
+    gama::{Gama, GamaMut},
+    hist::{Hist, HistMut},
+    iccp::{Iccp, IccpMut},
+    idat::{Idat, IdatMut},
+    iend::{Iend, IendMut},
+    ihdr::{Ihdr, IhdrMut},
+    itxt::{Itxt, ItxtMut},
+    phys::{Phys, PhysMut},
+    plte::{Plte, PlteMut},
+    sbit::{Sbit, SbitMut},
+    splt::{Splt, SpltMut},
+    srgb::{Srgb, SrgbMut},
+    text::{Text, TextMut},
+    time::{Time, TimeMut},
+    trns::{Trns, TrnsMut},
+    ztxt::{Ztxt, ZtxtMut},
 };
+use crate::crc::{Chunk, ChunkMut};
+use std::convert::TryInto;
 
+// Constants.
 // PNG SIGNATURE.
 const PNG_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
 
@@ -321,10 +337,136 @@ impl<'a> DataStreamMut<'a> {
             }
         })
     }
+    pub fn check_crc(&self) -> Result<(), String> {
+        let colour = match self.colour {
+            Some(colour) => colour,
+            None => return Err(ERROR_IHDRHEADER.into()),
+        };
+        if let Some(chunk) = &self.ihdr {
+            Ihdr::from(*chunk).check_crc()?;
+        }
+        if let Some(chunk) = &self.plte {
+            Plte::from(*chunk).check_crc()?;
+        }
+        for chunk in &self.idat {
+            Idat::from(*chunk).check_crc()?;
+        }
+        if let Some(chunk) = &self.iend {
+            Iend::from(*chunk).check_crc()?;
+        }
+        if let Some(chunk) = &self.chrm {
+            Chrm::from(*chunk).check_crc()?;
+        }
+        if let Some(chunk) = &self.gama {
+            Gama::from(*chunk).check_crc()?;
+        }
+        if let Some(chunk) = &self.iccp {
+            Iccp::from(*chunk).check_crc()?;
+        }
+        if let Some(chunk) = &self.sbit {
+            Sbit::from(*chunk, colour).check_crc()?;
+        }
+        if let Some(chunk) = &self.srgb {
+            Srgb::from(*chunk).check_crc()?;
+        }
+        if let Some(chunk) = &self.bkgd {
+            Bkgd::from(*chunk, colour).check_crc()?;
+        }
+        if let Some(chunk) = &self.hist {
+            Hist::from(*chunk).check_crc()?;
+        }
+        if let Some(chunk) = &self.trns {
+            Trns::from(*chunk, colour).check_crc()?;
+        }
+        if let Some(chunk) = &self.phys {
+            Phys::from(*chunk).check_crc()?;
+        }
+        for chunk in &self.splt {
+            Splt::from(*chunk).check_crc()?;
+        }
+        if let Some(chunk) = &self.time {
+            Time::from(*chunk).check_crc()?;
+        }
+        for chunk in &self.itxt {
+            Itxt::from(*chunk).check_crc()?;
+        }
+        for chunk in &self.text {
+            Text::from(*chunk).check_crc()?;
+        }
+        for chunk in &self.ztxt {
+            Ztxt::from(*chunk).check_crc()?;
+        }
+        Ok(())
+    }
+    pub fn compute_crc(&mut self) -> Result<(), String> {
+        let colour = match self.colour {
+            Some(colour) => colour,
+            None => return Err(ERROR_IHDRHEADER.into()),
+        };
+        if let Some(chunk) = &mut self.ihdr {
+            IhdrMut::from(*chunk).compute_crc();
+        }
+        if let Some(chunk) = &mut self.plte {
+            PlteMut::from(*chunk).compute_crc();
+        }
+        for chunk in &mut self.idat {
+            IdatMut::from(*chunk).compute_crc();
+        }
+        if let Some(chunk) = &mut self.iend {
+            IendMut::from(*chunk).compute_crc();
+        }
+        if let Some(chunk) = &mut self.chrm {
+            ChrmMut::from(*chunk).compute_crc();
+        }
+        if let Some(chunk) = &mut self.gama {
+            GamaMut::from(*chunk).compute_crc();
+        }
+        if let Some(chunk) = &mut self.iccp {
+            IccpMut::from(*chunk).compute_crc();
+        }
+        if let Some(chunk) = &mut self.sbit {
+            SbitMut::from(*chunk, colour).compute_crc();
+        }
+        if let Some(chunk) = &mut self.srgb {
+            SrgbMut::from(*chunk).compute_crc();
+        }
+        if let Some(chunk) = &mut self.bkgd {
+            BkgdMut::from(*chunk, colour).compute_crc();
+        }
+        if let Some(chunk) = &mut self.hist {
+            HistMut::from(*chunk).compute_crc();
+        }
+        if let Some(chunk) = &mut self.trns {
+            TrnsMut::from(*chunk, colour).compute_crc();
+        }
+        if let Some(chunk) = &mut self.phys {
+            PhysMut::from(*chunk).compute_crc();
+        }
+        for chunk in &mut self.splt {
+            SpltMut::from(*chunk).compute_crc();
+        }
+        if let Some(chunk) = &mut self.time {
+            TimeMut::from(*chunk).compute_crc();
+        }
+        for chunk in &mut self.itxt {
+            ItxtMut::from(*chunk).compute_crc();
+        }
+        for chunk in &mut self.text {
+            TextMut::from(*chunk).compute_crc();
+        }
+        for chunk in &mut self.ztxt {
+            ZtxtMut::from(*chunk).compute_crc();
+        }
+        Ok(())
+    }
 }
 
 impl<'a> std::fmt::Debug for DataStreamMut<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let colour = match self.colour {
+            Some(colour) => colour,
+            None => return write!(f, "{}", ERROR_IHDRHEADER),
+        };
         let mut s = format!("PNG Header\n");
         if let Some(chunk) = &self.ihdr {
             s.push_str(&format!("{:?}", Ihdr::from(*chunk)));
@@ -348,31 +490,13 @@ impl<'a> std::fmt::Debug for DataStreamMut<'a> {
             s.push_str(&format!("{:?}", Iccp::from(*chunk)));
         }
         if let Some(chunk) = &self.sbit {
-            s.push_str(&format!(
-                "{:?}",
-                Sbit::from(
-                    *chunk,
-                    match self.colour {
-                        Some(colour) => colour,
-                        None => return write!(f, "{}", ERROR_IHDRHEADER),
-                    }
-                )
-            ));
+            s.push_str(&format!("{:?}", Sbit::from(*chunk, colour)));
         }
         if let Some(chunk) = &self.srgb {
             s.push_str(&format!("{:?}", Srgb::from(*chunk)));
         }
         if let Some(chunk) = &self.bkgd {
-            s.push_str(&format!(
-                "{:?}",
-                Bkgd::from(
-                    *chunk,
-                    match self.colour {
-                        Some(colour) => colour,
-                        None => return write!(f, "{}", ERROR_IHDRHEADER),
-                    }
-                )
-            ));
+            s.push_str(&format!("{:?}", Bkgd::from(*chunk, colour)));
         }
         if let Some(chunk) = &self.hist {
             s.push_str(&format!("{:?}", Hist::from(*chunk)));
@@ -382,11 +506,10 @@ impl<'a> std::fmt::Debug for DataStreamMut<'a> {
                 "{:?}",
                 Trns::from(
                     *chunk,
-                    match self.colour {
-                        Some(ColourType::GreyscaleAlpha) | Some(ColourType::TruecolourAlpha) =>
+                    match colour {
+                        ColourType::GreyscaleAlpha | ColourType::TruecolourAlpha =>
                             return write!(f, "{}", ERROR_TRNSHEADER),
-                        Some(colour) => colour,
-                        None => return write!(f, "{}", ERROR_IHDRHEADER),
+                        colour => colour,
                     }
                 )
             ));

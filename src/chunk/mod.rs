@@ -1,3 +1,5 @@
+//! # Chunk
+
 pub mod bkgd;
 pub mod chrm;
 pub mod gama;

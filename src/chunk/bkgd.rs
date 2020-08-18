@@ -1,11 +1,28 @@
 // Imports.
+use crate::crc::{Chunk, ChunkMut};
 use crate::datastream::ColourType;
 use std::convert::TryInto;
 // Structures.
-pub(crate) struct Bkgd<'a>(&'a [u8], ColourType);
+pub struct Bkgd<'a>(&'a [u8], ColourType);
+pub struct BkgdMut<'a>(&'a mut [u8], ColourType);
 // Implementations.
+impl<'a> Chunk for Bkgd<'a> {
+    fn inner(&self) -> &[u8] {
+        self.0
+    }
+}
+impl<'a> ChunkMut for BkgdMut<'a> {
+    fn inner(&mut self) -> &mut [u8] {
+        self.0
+    }
+}
 impl<'a> Bkgd<'a> {
-    pub(crate) fn from(buf: &'a [u8], colour: ColourType) -> Self {
+    pub fn from(buf: &'a [u8], colour: ColourType) -> Self {
+        Self(buf, colour)
+    }
+}
+impl<'a> BkgdMut<'a> {
+    pub fn from(buf: &'a mut [u8], colour: ColourType) -> Self {
         Self(buf, colour)
     }
 }
