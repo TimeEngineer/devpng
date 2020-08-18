@@ -1,5 +1,5 @@
 // Imports.
-use crate::crc::{Chunk, ChunkMut};
+use crate::prelude::{Chunk, ChunkMut};
 use std::convert::TryInto;
 // Strutures.
 pub struct Hist<'a>(&'a [u8]);

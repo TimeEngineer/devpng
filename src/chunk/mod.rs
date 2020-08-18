@@ -18,3 +18,4 @@ pub mod text;
 pub mod time;
 pub mod trns;
 pub mod ztxt;
+pub mod chunk;

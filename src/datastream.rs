@@ -21,7 +21,7 @@ use crate::chunk::{
     trns::{Trns, TrnsMut},
     ztxt::{Ztxt, ZtxtMut},
 };
-use crate::crc::{Chunk, ChunkMut};
+use crate::prelude::{Chunk, ChunkMut};
 use std::convert::TryInto;
 
 // Constants.

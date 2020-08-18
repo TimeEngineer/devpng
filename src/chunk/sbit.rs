@@ -1,5 +1,5 @@
 // Imports.
-use crate::crc::{Chunk, ChunkMut};
+use crate::prelude::{Chunk, ChunkMut};
 use crate::datastream::ColourType;
 use std::convert::TryInto;
 // Structures.
