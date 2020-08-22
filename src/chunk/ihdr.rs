@@ -1,4 +1,5 @@
 // Imports.
+use crate::colour::ColourType;
 use crate::prelude::{Chunk, ChunkMut};
 use std::convert::TryInto;
 // Structures.
@@ -19,10 +20,25 @@ impl<'a> Ihdr<'a> {
     pub fn from(buf: &'a [u8]) -> Self {
         Self(buf)
     }
+    pub fn width(&self) -> u32 {
+        u32::from_be_bytes(self.0[8..12].try_into().unwrap())
+    }
+    pub fn height(&self) -> u32 {
+        u32::from_be_bytes(self.0[12..16].try_into().unwrap())
+    }
+    pub fn bit_depth(&self) -> u8 {
+        self.0[16]
+    }
+    pub fn colour_type(&self) -> ColourType {
+        ColourType::from(self.0[17])
+    }
 }
 impl<'a> IhdrMut<'a> {
     pub fn from(buf: &'a mut [u8]) -> Self {
         Self(buf)
+    }
+    pub fn colour_type(&self) -> ColourType {
+        ColourType::from(self.0[17])
     }
 }
 impl<'a> std::fmt::Debug for Ihdr<'a> {

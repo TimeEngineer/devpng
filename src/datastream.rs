@@ -1,6 +1,7 @@
 //! # DataStream
 
 // Imports.
+use crate::cache::FiltCache;
 use crate::chunk::{
     bkgd::{Bkgd, BkgdMut},
     chrm::{Chrm, ChrmMut},
@@ -21,7 +22,10 @@ use crate::chunk::{
     trns::{Trns, TrnsMut},
     ztxt::{Ztxt, ZtxtMut},
 };
+use crate::colour::ColourType;
+use crate::crc::Crc;
 use crate::prelude::{Chunk, ChunkMut};
+use std::convert::TryFrom;
 use std::convert::TryInto;
 
 // Constants.
@@ -86,9 +90,8 @@ Truecolour with alpha = 6
 const ERROR_PNGHEADER: &str = "PNG header is missing";
 const ERROR_IHDRHEADER: &str = "IHDR header is missing";
 const ERROR_TRNSHEADER: &str = "tNRS can't match with this colour type";
-const ERROR_BUFFER: &str = "Buffer overflow";
+const ERROR_BUFFER: &str = "DevPNG: Buffer overflow";
 const ERROR_UNKNOWN: &str = "Unknown chunk";
-const ERROR_COLOUR: &str = "Colourtype";
 const ERROR_IHDR: &str = "IHDR length";
 const ERROR_PLTE: &str = "PLTE length";
 const ERROR_IEND: &str = "IEND length";
@@ -100,23 +103,15 @@ const ERROR_BKGD: &str = "bKGD length";
 const ERROR_HIST: &str = "hIST length";
 const ERROR_PHYS: &str = "pHYs length";
 const ERROR_TIME: &str = "tIME length";
+const ERROR_COLOUR: &str = "ColourType";
+const ERROR_DEPTH: &str = "BitDepth";
 
 // Structures.
-#[derive(Debug, Clone, Copy)]
-pub enum ColourType {
-    Greyscale = 0,
-    Truecolour = 2,
-    Indexed = 3,
-    GreyscaleAlpha = 4,
-    TruecolourAlpha = 6,
-}
 pub struct DataStreamMut<'a> {
-    pub ihdr: Option<&'a mut [u8]>,
+    pub ihdr: &'a mut [u8],
     pub plte: Option<&'a mut [u8]>,
     pub idat: Vec<&'a mut [u8]>,
     pub iend: Option<&'a mut [u8]>,
-
-    pub colour: Option<ColourType>,
 
     pub chrm: Option<&'a mut [u8]>,
     pub gama: Option<&'a mut [u8]>,
@@ -138,85 +133,82 @@ pub struct DataStreamMut<'a> {
 }
 
 // Implementations.
-impl ColourType {
-    fn from(colourtype: u8) -> Result<Self, String> {
-        Ok(match colourtype {
-            0 => Self::Greyscale,
-            2 => Self::Truecolour,
-            3 => Self::Indexed,
-            4 => Self::GreyscaleAlpha,
-            6 => Self::TruecolourAlpha,
-            _ => return Err(ERROR_COLOUR.into()),
-        })
-    }
-}
 impl<'a> DataStreamMut<'a> {
-    fn new() -> Self {
-        Self {
-            ihdr: None,
-            plte: None,
-            idat: Vec::new(),
-            iend: None,
-
-            colour: None,
-
-            chrm: None,
-            gama: None,
-            iccp: None,
-            sbit: None,
-            srgb: None,
-
-            bkgd: None,
-            hist: None,
-            trns: None,
-
-            phys: None,
-            splt: Vec::new(),
-
-            time: None,
-            itxt: Vec::new(),
-            text: Vec::new(),
-            ztxt: Vec::new(),
-        }
-    }
     pub fn from(buf: &'a mut [u8]) -> Result<Self, String> {
-        let mut buf = buf;
-        // Initialization
-        let mut datastream = Self::new();
-        // PNG HEADER (mandatory)
-        buf = datastream.read_png_header(buf)?;
+        // PNG HEADER & IHDR (mandatory)
+        let (mut datastream, mut buf) = Self::read_png_header(buf)?;
         while buf.len() >= 12 {
             buf = datastream.read_chunk(buf)?;
         }
         assert_eq!(buf.len(), 0);
         Ok(datastream)
     }
-    fn read_png_header(&self, buf: &'a mut [u8]) -> Result<&'a mut [u8], String> {
+    fn read_png_header(buf: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), String> {
         if buf.len() < 8 {
             return Err(ERROR_PNGHEADER.into());
         }
-        let chunk: [u8; 8] = buf[0..8].try_into().unwrap();
+        let chunk = <[u8; 8]>::try_from(&buf[0..8]).unwrap();
         if chunk != PNG_HEADER {
             return Err(ERROR_PNGHEADER.into());
         }
-        Ok(buf.split_at_mut(8).1)
+        let buf = buf.split_at_mut(8).1;
+
+        let length = u32::from_be_bytes(buf[0..4].try_into().unwrap()) as usize;
+        if buf.len() < 12 + length {
+            return Err(ERROR_BUFFER.into());
+        }
+        let chunk = <[u8; 4]>::try_from(&buf[4..8]).unwrap();
+        if chunk != IHDR {
+            return Err(ERROR_IHDRHEADER.into());
+        }
+        if length != 13 {
+            return Err(ERROR_IHDR.into());
+        }
+        let (ihdr, buf) = buf.split_at_mut(12 + length);
+        // Check BitDepth & ColourType.
+        match ihdr[16] {
+            1 | 2 | 4 | 8 | 16 => {}
+            _ => return Err(ERROR_DEPTH.into()),
+        }
+        match ihdr[17] {
+            0 | 2 | 3 | 4 | 6 => {}
+            _ => return Err(ERROR_COLOUR.into()),
+        }
+        Ok((
+            Self {
+                ihdr,
+                plte: None,
+                idat: Vec::new(),
+                iend: None,
+
+                chrm: None,
+                gama: None,
+                iccp: None,
+                sbit: None,
+                srgb: None,
+
+                bkgd: None,
+                hist: None,
+                trns: None,
+
+                phys: None,
+                splt: Vec::new(),
+
+                time: None,
+                itxt: Vec::new(),
+                text: Vec::new(),
+                ztxt: Vec::new(),
+            },
+            buf,
+        ))
     }
     fn read_chunk(&mut self, buf: &'a mut [u8]) -> Result<&'a mut [u8], String> {
         let length = u32::from_be_bytes(buf[0..4].try_into().unwrap()) as usize;
         if buf.len() < 12 + length {
             return Err(ERROR_BUFFER.into());
         }
-        let chunk: [u8; 4] = buf[4..8].try_into().unwrap();
+        let chunk = <[u8; 4]>::try_from(&buf[4..8]).unwrap();
         Ok(match chunk {
-            IHDR => {
-                if length != 13 {
-                    return Err(ERROR_IHDR.into());
-                }
-                let (chunk, left) = buf.split_at_mut(12 + length);
-                self.colour = Some(ColourType::from(chunk[17])?);
-                self.ihdr = Some(chunk);
-                left
-            }
             PLTE => {
                 if length % 3 != 0 {
                     return Err(ERROR_PLTE.into());
@@ -338,13 +330,9 @@ impl<'a> DataStreamMut<'a> {
         })
     }
     pub fn check_crc(&self) -> Result<(), String> {
-        let colour = match self.colour {
-            Some(colour) => colour,
-            None => return Err(ERROR_IHDRHEADER.into()),
-        };
-        if let Some(chunk) = &self.ihdr {
-            Ihdr::from(*chunk).check_crc()?;
-        }
+        let ihdr = Ihdr::from(self.ihdr);
+        let colour = ihdr.colour_type();
+        ihdr.check_crc()?;
         if let Some(chunk) = &self.plte {
             Plte::from(*chunk).check_crc()?;
         }
@@ -399,13 +387,9 @@ impl<'a> DataStreamMut<'a> {
         Ok(())
     }
     pub fn compute_crc(&mut self) -> Result<(), String> {
-        let colour = match self.colour {
-            Some(colour) => colour,
-            None => return Err(ERROR_IHDRHEADER.into()),
-        };
-        if let Some(chunk) = &mut self.ihdr {
-            IhdrMut::from(*chunk).compute_crc();
-        }
+        let mut ihdr = IhdrMut::from(self.ihdr);
+        let colour = ihdr.colour_type();
+        ihdr.compute_crc();
         if let Some(chunk) = &mut self.plte {
             PlteMut::from(*chunk).compute_crc();
         }
@@ -459,18 +443,117 @@ impl<'a> DataStreamMut<'a> {
         }
         Ok(())
     }
+    pub fn idat(&self) -> Result<FiltCache, String> {
+        let ihdr = Ihdr::from(self.ihdr);
+        let mut v = Vec::new();
+        for idat in &self.idat {
+            let idat = Idat::from(*idat);
+            let data = idat.data();
+            v.extend_from_slice(data);
+        }
+        FiltCache::build(
+            ihdr.width(),
+            ihdr.height(),
+            ihdr.bit_depth(),
+            ihdr.colour_type(),
+            &v,
+        )
+    }
+    pub fn rebuild(&mut self, idat: Option<FiltCache>) -> Vec<u8> {
+        let mut encoded = match idat {
+            Some(mut idat) => {
+                let idat = idat.rebuild();
+                let length = (idat.len() as u32).to_be_bytes();
+                let chunk = IDAT;
+                let mut crc = Crc::new();
+                crc.update(&chunk);
+                crc.update(&idat);
+                [&length[..], &chunk[..], &idat, &crc.checksum()[..]].concat()
+            }
+            None => {
+                let mut idat = Vec::new();
+                for x in &self.idat {
+                    let x = Idat::from(*x);
+                    let data = x.data();
+                    idat.extend_from_slice(data);
+                }
+                let length = (idat.len() as u32).to_be_bytes();
+                let chunk = IDAT;
+                let mut crc = Crc::new();
+                crc.update(&chunk);
+                crc.update(&idat);
+                [&length[..], &chunk[..], &idat, &crc.checksum()[..]].concat()
+            }
+        };
+        let mut v_out = Vec::new();
+        v_out.extend(&PNG_HEADER);
+        v_out.extend_from_slice(self.ihdr);
+        // Before PLTE.
+        if let Some(chunk) = &self.chrm {
+            v_out.extend_from_slice(chunk);
+        }
+        if let Some(chunk) = &self.gama {
+            v_out.extend_from_slice(chunk);
+        }
+        if let Some(chunk) = &self.iccp {
+            v_out.extend_from_slice(chunk);
+        }
+        if let Some(chunk) = &self.sbit {
+            v_out.extend_from_slice(chunk);
+        }
+        if let Some(chunk) = &self.srgb {
+            v_out.extend_from_slice(chunk);
+        }
+        // PLTE.
+        if let Some(chunk) = &self.plte {
+            v_out.extend_from_slice(chunk);
+        }
+        // After PLTE.
+        if let Some(chunk) = &self.bkgd {
+            v_out.extend_from_slice(chunk);
+        }
+        if let Some(chunk) = &self.hist {
+            v_out.extend_from_slice(chunk);
+        }
+        if let Some(chunk) = &self.trns {
+            v_out.extend_from_slice(chunk);
+        }
+        // Before IDAT.
+        if let Some(chunk) = &self.phys {
+            v_out.extend_from_slice(chunk);
+        }
+        for chunk in &self.splt {
+            v_out.extend_from_slice(chunk);
+        }
+        // IDAT.
+        v_out.append(&mut encoded);
+        // Others.
+        if let Some(chunk) = &self.time {
+            v_out.extend_from_slice(chunk);
+        }
+        for chunk in &self.itxt {
+            v_out.extend_from_slice(chunk);
+        }
+        for chunk in &self.text {
+            v_out.extend_from_slice(chunk);
+        }
+        for chunk in &self.ztxt {
+            v_out.extend_from_slice(chunk);
+        }
+        // IEND.
+        for chunk in &self.iend {
+            v_out.extend_from_slice(chunk);
+        }
+        v_out
+    }
 }
 
 impl<'a> std::fmt::Debug for DataStreamMut<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let colour = match self.colour {
-            Some(colour) => colour,
-            None => return write!(f, "{}", ERROR_IHDRHEADER),
-        };
+        let ihdr = Ihdr::from(self.ihdr);
+        let colour = ihdr.colour_type();
         let mut s = format!("PNG Header\n");
-        if let Some(chunk) = &self.ihdr {
-            s.push_str(&format!("{:?}", Ihdr::from(*chunk)));
-        }
+        s.push_str(&format!("{:?}", ihdr));
         if let Some(chunk) = &self.plte {
             s.push_str(&format!("{:?}", Plte::from(*chunk)));
         }

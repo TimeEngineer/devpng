@@ -1,6 +1,6 @@
 // Imports.
+use crate::colour::ColourType;
 use crate::prelude::{Chunk, ChunkMut};
-use crate::datastream::ColourType;
 use std::convert::TryInto;
 // Structures.
 pub struct Trns<'a>(&'a [u8], ColourType);

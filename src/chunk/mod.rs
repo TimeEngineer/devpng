@@ -2,6 +2,7 @@
 
 pub mod bkgd;
 pub mod chrm;
+pub mod chunk;
 pub mod gama;
 pub mod hist;
 pub mod iccp;
@@ -18,4 +19,3 @@ pub mod text;
 pub mod time;
 pub mod trns;
 pub mod ztxt;
-pub mod chunk;

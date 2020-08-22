@@ -3,7 +3,15 @@ name = "devpng"
 version = "0.1.0"
 authors = ["TimeEngineer <chenpascal241096@yahoo.fr>"]
 edition = "2018"
+description = "PNG parser"
+repository = "https://github.com/TimeEngineer/DevPNG"
+documentation = "https://docs.rs/devpng"
+readme = "README.md"
+keywords = ["png"]
+categories = ["image"]
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+devker = { path = "../devker" }
