@@ -28,14 +28,14 @@ use std::convert::TryInto;
 
 // Constants.
 // PNG SIGNATURE.
-pub const PNG_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
+pub(crate) const PNG_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
 // IEND CHUNK.
-pub const IEND_CHUNK: [u8; 12] = [0, 0, 0, 0, b'I', b'E', b'N', b'D', 0xAE, 0x42, 0x60, 0x82];
+pub(crate) const IEND_CHUNK: [u8; 12] = [0, 0, 0, 0, b'I', b'E', b'N', b'D', 0xAE, 0x42, 0x60, 0x82];
 
 //
-pub const IHDR: [u8; 4] = [b'I', b'H', b'D', b'R'];
+const IHDR: [u8; 4] = [b'I', b'H', b'D', b'R'];
 const PLTE: [u8; 4] = [b'P', b'L', b'T', b'E'];
-pub const IDAT: [u8; 4] = [b'I', b'D', b'A', b'T']; // allow multiple
+const IDAT: [u8; 4] = [b'I', b'D', b'A', b'T']; // allow multiple
 const IEND: [u8; 4] = [b'I', b'E', b'N', b'D'];
 
 // Before PLTE and IDAT.

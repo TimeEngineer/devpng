@@ -6,7 +6,6 @@ edition = "2018"
 description = "PNG parser"
 repository = "https://github.com/TimeEngineer/DevPNG"
 documentation = "https://docs.rs/devpng"
-readme = "README.md"
 keywords = ["png"]
 categories = ["image"]
 license = "MIT"
