@@ -1,7 +1,6 @@
 //! # DataStream
 
 // Imports.
-use crate::cache::FiltCache;
 use crate::chunk::{
     bkgd::{Bkgd, BkgdMut},
     chrm::{Chrm, ChrmMut},
@@ -22,20 +21,21 @@ use crate::chunk::{
     trns::{Trns, TrnsMut},
     ztxt::{Ztxt, ZtxtMut},
 };
-use crate::colour::ColourType;
 use crate::crc::Crc;
-use crate::prelude::{Chunk, ChunkMut};
+use crate::prelude::{Chunk, ChunkMut, ColourType, FiltCache};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
 // Constants.
 // PNG SIGNATURE.
-const PNG_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
+pub const PNG_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
+// IEND CHUNK.
+pub const IEND_CHUNK: [u8; 12] = [0, 0, 0, 0, b'I', b'E', b'N', b'D', 0xAE, 0x42, 0x60, 0x82];
 
 //
-const IHDR: [u8; 4] = [b'I', b'H', b'D', b'R'];
+pub const IHDR: [u8; 4] = [b'I', b'H', b'D', b'R'];
 const PLTE: [u8; 4] = [b'P', b'L', b'T', b'E'];
-const IDAT: [u8; 4] = [b'I', b'D', b'A', b'T']; // allow multiple
+pub const IDAT: [u8; 4] = [b'I', b'D', b'A', b'T']; // allow multiple
 const IEND: [u8; 4] = [b'I', b'E', b'N', b'D'];
 
 // Before PLTE and IDAT.
@@ -386,7 +386,7 @@ impl<'a> DataStreamMut<'a> {
         }
         Ok(())
     }
-    pub fn compute_crc(&mut self) -> Result<(), String> {
+    pub fn compute_crc(&mut self) {
         let mut ihdr = IhdrMut::from(self.ihdr);
         let colour = ihdr.colour_type();
         ihdr.compute_crc();
@@ -441,7 +441,6 @@ impl<'a> DataStreamMut<'a> {
         for chunk in &mut self.ztxt {
             ZtxtMut::from(*chunk).compute_crc();
         }
-        Ok(())
     }
     pub fn idat(&self) -> Result<FiltCache, String> {
         let ihdr = Ihdr::from(self.ihdr);
@@ -459,17 +458,31 @@ impl<'a> DataStreamMut<'a> {
             &v,
         )
     }
-    pub fn rebuild(&mut self, idat: Option<FiltCache>) -> Vec<u8> {
-        let mut encoded = match idat {
-            Some(mut idat) => {
-                let idat = idat.rebuild();
-                let length = (idat.len() as u32).to_be_bytes();
-                let chunk = IDAT;
-                let mut crc = Crc::new();
-                crc.update(&chunk);
-                crc.update(&idat);
-                [&length[..], &chunk[..], &idat, &crc.checksum()[..]].concat()
-            }
+    pub(crate) fn build_ihdr_with_cache(cache: &mut FiltCache) -> Vec<u8> {
+        let ihdr = cache.ihdr();
+        let length = 13u32.to_be_bytes();
+        let chunk = IHDR;
+        let mut crc = Crc::new();
+        crc.update(&chunk);
+        crc.update(&ihdr);
+        [&length[..], &chunk[..], &ihdr, &crc.checksum()[..]].concat()
+    }
+    pub(crate) fn build_idat_with_cache(cache: &mut FiltCache) -> Vec<u8> {
+        let idat = cache.rebuild();
+        let length = (idat.len() as u32).to_be_bytes();
+        let chunk = IDAT;
+        let mut crc = Crc::new();
+        crc.update(&chunk);
+        crc.update(&idat);
+        [&length[..], &chunk[..], &idat, &crc.checksum()[..]].concat()
+    }
+    pub fn rebuild(&mut self, cache: &mut Option<&mut FiltCache>) -> Vec<u8> {
+        let mut ihdr = match cache {
+            Some(cache) => Self::build_ihdr_with_cache(cache),
+            None => self.ihdr.to_vec(),
+        };
+        let mut encoded = match cache {
+            Some(cache) => Self::build_idat_with_cache(cache),
             None => {
                 let mut idat = Vec::new();
                 for x in &self.idat {
@@ -486,8 +499,8 @@ impl<'a> DataStreamMut<'a> {
             }
         };
         let mut v_out = Vec::new();
-        v_out.extend(&PNG_HEADER);
-        v_out.extend_from_slice(self.ihdr);
+        v_out.extend_from_slice(&PNG_HEADER);
+        v_out.append(&mut ihdr);
         // Before PLTE.
         if let Some(chunk) = &self.chrm {
             v_out.extend_from_slice(chunk);
@@ -541,9 +554,7 @@ impl<'a> DataStreamMut<'a> {
             v_out.extend_from_slice(chunk);
         }
         // IEND.
-        for chunk in &self.iend {
-            v_out.extend_from_slice(chunk);
-        }
+        v_out.extend_from_slice(&IEND_CHUNK);
         v_out
     }
 }
@@ -590,7 +601,7 @@ impl<'a> std::fmt::Debug for DataStreamMut<'a> {
                 Trns::from(
                     *chunk,
                     match colour {
-                        ColourType::GreyscaleAlpha | ColourType::TruecolourAlpha =>
+                        ColourType::GreyscaleAlpha | ColourType::RGBA =>
                             return write!(f, "{}", ERROR_TRNSHEADER),
                         colour => colour,
                     }
@@ -614,6 +625,76 @@ impl<'a> std::fmt::Debug for DataStreamMut<'a> {
         }
         for chunk in &self.ztxt {
             s.push_str(&format!("{:?}", Ztxt::from(*chunk)));
+        }
+        write!(f, "{}", s)
+    }
+}
+impl<'a> std::fmt::Display for DataStreamMut<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let ihdr = Ihdr::from(self.ihdr);
+        let colour = ihdr.colour_type();
+        let mut s = format!("PNG Header\n");
+        s.push_str(&format!("{}", ihdr));
+        if let Some(chunk) = &self.plte {
+            s.push_str(&format!("{}", Plte::from(*chunk)));
+        }
+        for chunk in &self.idat {
+            s.push_str(&format!("{}", Idat::from(*chunk)));
+        }
+        if let Some(chunk) = &self.iend {
+            s.push_str(&format!("{}", Iend::from(*chunk)));
+        }
+        if let Some(chunk) = &self.chrm {
+            s.push_str(&format!("{}", Chrm::from(*chunk)));
+        }
+        if let Some(chunk) = &self.gama {
+            s.push_str(&format!("{}", Gama::from(*chunk)));
+        }
+        if let Some(chunk) = &self.iccp {
+            s.push_str(&format!("{}", Iccp::from(*chunk)));
+        }
+        if let Some(chunk) = &self.sbit {
+            s.push_str(&format!("{}", Sbit::from(*chunk, colour)));
+        }
+        if let Some(chunk) = &self.srgb {
+            s.push_str(&format!("{}", Srgb::from(*chunk)));
+        }
+        if let Some(chunk) = &self.bkgd {
+            s.push_str(&format!("{}", Bkgd::from(*chunk, colour)));
+        }
+        if let Some(chunk) = &self.hist {
+            s.push_str(&format!("{}", Hist::from(*chunk)));
+        }
+        if let Some(chunk) = &self.trns {
+            s.push_str(&format!(
+                "{}",
+                Trns::from(
+                    *chunk,
+                    match colour {
+                        ColourType::GreyscaleAlpha | ColourType::RGBA =>
+                            return write!(f, "{}", ERROR_TRNSHEADER),
+                        colour => colour,
+                    }
+                )
+            ));
+        }
+        if let Some(chunk) = &self.phys {
+            s.push_str(&format!("{}", Phys::from(*chunk)));
+        }
+        for chunk in &self.splt {
+            s.push_str(&format!("{}", Splt::from(*chunk)));
+        }
+        if let Some(chunk) = &self.time {
+            s.push_str(&format!("{}", Time::from(*chunk)));
+        }
+        for chunk in &self.itxt {
+            s.push_str(&format!("{}", Itxt::from(*chunk)));
+        }
+        for chunk in &self.text {
+            s.push_str(&format!("{}", Text::from(*chunk)));
+        }
+        for chunk in &self.ztxt {
+            s.push_str(&format!("{}", Ztxt::from(*chunk)));
         }
         write!(f, "{}", s)
     }

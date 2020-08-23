@@ -36,7 +36,17 @@ impl<'a> std::fmt::Debug for Gama<'a> {
         ));
         s.push_str(&format!(
             "  crc: 0x{:08X}\n",
-            u32::from_be_bytes(self.0[12..16].try_into().unwrap())
+            u32::from_be_bytes(self.0[8 + length..].try_into().unwrap())
+        ));
+        write!(f, "{}", s)
+    }
+}
+impl<'a> std::fmt::Display for Gama<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut s = format!("gAMA\n");
+        s.push_str(&format!(
+            "  image gamma: {}\n",
+            u32::from_be_bytes(self.0[8..12].try_into().unwrap())
         ));
         write!(f, "{}", s)
     }

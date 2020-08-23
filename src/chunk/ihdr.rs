@@ -1,6 +1,5 @@
 // Imports.
-use crate::colour::ColourType;
-use crate::prelude::{Chunk, ChunkMut};
+use crate::prelude::{Chunk, ChunkMut, ColourType};
 use std::convert::TryInto;
 // Structures.
 pub struct Ihdr<'a>(&'a [u8]);
@@ -61,8 +60,27 @@ impl<'a> std::fmt::Debug for Ihdr<'a> {
         s.push_str(&format!("  interlace: {}\n", self.0[20]));
         s.push_str(&format!(
             "  crc: 0x{:08X}\n",
-            u32::from_be_bytes(self.0[21..25].try_into().unwrap())
+            u32::from_be_bytes(self.0[8 + length..].try_into().unwrap())
         ));
+        write!(f, "{}", s)
+    }
+}
+impl<'a> std::fmt::Display for Ihdr<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut s = format!("IHDR\n");
+        s.push_str(&format!(
+            "  width: {}\n",
+            u32::from_be_bytes(self.0[8..12].try_into().unwrap())
+        ));
+        s.push_str(&format!(
+            "  height: {}\n",
+            u32::from_be_bytes(self.0[12..16].try_into().unwrap())
+        ));
+        s.push_str(&format!("  bit depth: {}\n", self.0[16]));
+        s.push_str(&format!("  colour type: {}\n", self.0[17]));
+        s.push_str(&format!("  compression: {}\n", self.0[18]));
+        s.push_str(&format!("  filter: {}\n", self.0[19]));
+        s.push_str(&format!("  interlace: {}\n", self.0[20]));
         write!(f, "{}", s)
     }
 }

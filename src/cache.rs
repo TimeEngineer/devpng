@@ -1,8 +1,7 @@
 //! # FiltCache
 
 // Imports.
-use crate::colour::ColourType;
-use crate::image::Image;
+use crate::prelude::{ColourType, Image};
 use devker::prelude::{zlib_decode_to, zlib_encode, BlockType, Cache};
 // Structures.
 pub struct FiltCache {
@@ -25,9 +24,9 @@ impl FiltCache {
     ) -> Result<Self, String> {
         let npix = match colour_type {
             ColourType::Greyscale | ColourType::Indexed => 1,
-            ColourType::Truecolour => 3,
+            ColourType::RGB => 3,
             ColourType::GreyscaleAlpha => 2,
-            ColourType::TruecolourAlpha => 4,
+            ColourType::RGBA => 4,
         };
         let width = match bit_depth {
             1 => (width as usize) >> 3 + if width % 8 == 0 { 0 } else { 1 },
@@ -49,8 +48,7 @@ impl FiltCache {
         let mut data = vec![0; height * (2 * width + 1)];
         let (_, filt) = data.split_at_mut(height * width);
         zlib_decode_to(idat, &mut cache, filt)?;
-
-        Ok(Self {
+        let mut cache = Self {
             width,
             height,
             bit_depth,
@@ -58,10 +56,36 @@ impl FiltCache {
             bpp,
             data,
             cache,
-        })
+        };
+        cache.recon();
+        Ok(cache)
+    }
+    pub fn from_image(img: &Image) -> Self {
+        let npix = match img.colour {
+            ColourType::Greyscale | ColourType::Indexed => 1,
+            ColourType::RGB => 3,
+            ColourType::GreyscaleAlpha => 2,
+            ColourType::RGBA => 4,
+        };
+        let bpp = match img.depth {
+            1 | 2 | 4 | 8 => 1,
+            16 => 2,
+            _ => unreachable!(),
+        } * npix;
+        let cache = Cache::new();
+        let mut data = vec![0; img.nrow * (2 * img.ncol + 1)];
+        (&mut data[..img.nrow * img.ncol]).copy_from_slice(img.data);
+        Self {
+            width: img.ncol,
+            height: img.nrow,
+            bit_depth: img.depth,
+            colour_type: img.colour,
+            bpp,
+            data,
+            cache,
+        }
     }
     pub fn image(&mut self) -> Image {
-        self.recon();
         let (orig, _) = self.data.split_at_mut(self.height * self.width);
         Image::from(
             self.width,
@@ -80,6 +104,31 @@ impl FiltCache {
             self.colour_type,
             filt,
         )
+    }
+    pub fn ihdr(&self) -> Vec<u8> {
+        let mut ihdr = Vec::with_capacity(13);
+        let npix = match self.colour_type {
+            ColourType::Greyscale | ColourType::Indexed => 1,
+            ColourType::RGB => 3,
+            ColourType::GreyscaleAlpha => 2,
+            ColourType::RGBA => 4,
+        };
+        let width = ((match self.bit_depth {
+            1 => self.width << 3,
+            2 => self.width << 2,
+            4 => self.width << 1,
+            8 => self.width,
+            16 => self.width >> 1,
+            _ => unreachable!(),
+        } / npix) as u32)
+            .to_be_bytes();
+        let height = (self.height as u32).to_be_bytes();
+        ihdr.extend_from_slice(&width);
+        ihdr.extend_from_slice(&height);
+        ihdr.push(self.bit_depth);
+        ihdr.push(self.colour_type as u8);
+        ihdr.extend_from_slice(&[0, 0, 0]);
+        ihdr
     }
     pub fn rebuild(&mut self) -> Vec<u8> {
         self.filt();
@@ -221,8 +270,8 @@ fn recon3(v_in: &[u8], prev: &[u8], v_out: &mut [u8], bpp: usize) {
 
 fn recon4(v_in: &[u8], prev: &[u8], v_out: &mut [u8], bpp: usize) {
     let r = v_in.len();
-    let mut a = 0;
-    let mut c = 0;
+    let mut a;
+    let mut c;
     let mut b;
     let mut x;
     let mut pr;
@@ -232,7 +281,7 @@ fn recon4(v_in: &[u8], prev: &[u8], v_out: &mut [u8], bpp: usize) {
         pr = b;
         v_out[j] = x.wrapping_add(pr);
     }
-    for j in (bpp..r) {
+    for j in bpp..r {
         a = v_out[j - bpp];
         b = prev[j];
         c = prev[j - bpp];
@@ -288,9 +337,9 @@ fn filt3(v_in: &[u8], prev: &[u8], v_out: &mut [u8], bpp: usize) {
 
 fn filt4(v_in: &[u8], prev: &[u8], v_out: &mut [u8], bpp: usize) {
     let r = v_in.len();
-    let mut a = 0;
+    let mut a;
     let mut b;
-    let mut c = 0;
+    let mut c;
     let mut x;
     let mut pr;
     for j in 0..bpp {
@@ -299,7 +348,7 @@ fn filt4(v_in: &[u8], prev: &[u8], v_out: &mut [u8], bpp: usize) {
         pr = b;
         v_out[j] = x.wrapping_sub(pr);
     }
-    for j in (bpp..r) {
+    for j in bpp..r {
         a = v_in[j - bpp];
         b = prev[j];
         c = prev[j - bpp];

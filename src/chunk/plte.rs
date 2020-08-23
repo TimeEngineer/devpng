@@ -38,3 +38,11 @@ impl<'a> std::fmt::Debug for Plte<'a> {
         write!(f, "{}", s)
     }
 }
+impl<'a> std::fmt::Display for Plte<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let length = u32::from_be_bytes(self.0[0..4].try_into().unwrap()) as usize;
+        let mut s = format!("PLTE\n");
+        s.push_str(&format!("  palette: [{}][3]\n", length / 3));
+        write!(f, "{}", s)
+    }
+}

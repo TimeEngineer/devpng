@@ -32,8 +32,14 @@ impl<'a> std::fmt::Debug for Iend<'a> {
         s.push_str(&format!("  length: {}\n", length));
         s.push_str(&format!(
             "  crc: 0x{:08X}\n",
-            u32::from_be_bytes(self.0[8..12].try_into().unwrap())
+            u32::from_be_bytes(self.0[8 + length..].try_into().unwrap())
         ));
+        write!(f, "{}", s)
+    }
+}
+impl<'a> std::fmt::Display for Iend<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let s = format!("IEND\n");
         write!(f, "{}", s)
     }
 }

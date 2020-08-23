@@ -38,3 +38,11 @@ impl<'a> std::fmt::Debug for Idat<'a> {
         write!(f, "{}", s)
     }
 }
+impl<'a> std::fmt::Display for Idat<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let length = u32::from_be_bytes(self.0[0..4].try_into().unwrap()) as usize;
+        let mut s = format!("IDAT\n");
+        s.push_str(&format!("  idat: [{}]\n", length));
+        write!(f, "{}", s)
+    }
+}

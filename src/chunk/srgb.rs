@@ -33,8 +33,15 @@ impl<'a> std::fmt::Debug for Srgb<'a> {
         s.push_str(&format!("  rendering intent: {}\n", self.0[8]));
         s.push_str(&format!(
             "  crc: 0x{:08X}\n",
-            u32::from_be_bytes(self.0[9..13].try_into().unwrap())
+            u32::from_be_bytes(self.0[8 + length..].try_into().unwrap())
         ));
+        write!(f, "{}", s)
+    }
+}
+impl<'a> std::fmt::Display for Srgb<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut s = format!("sRGB\n");
+        s.push_str(&format!("  rendering intent: {}\n", self.0[8]));
         write!(f, "{}", s)
     }
 }

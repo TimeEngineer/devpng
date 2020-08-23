@@ -38,3 +38,11 @@ impl<'a> std::fmt::Debug for Hist<'a> {
         write!(f, "{}", s)
     }
 }
+impl<'a> std::fmt::Display for Hist<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let length = u32::from_be_bytes(self.0[0..4].try_into().unwrap()) as usize;
+        let mut s = format!("hIST\n");
+        s.push_str(&format!("  frequency: [{}][2]\n", length / 2));
+        write!(f, "{}", s)
+    }
+}
