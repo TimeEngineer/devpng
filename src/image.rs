@@ -71,6 +71,48 @@ impl<'a> Image<'a> {
         self.data = data;
         self
     }
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
+        self.data.iter()
+    }
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, u8> {
+        self.data.iter_mut()
+    }
+    pub fn chunks(&self, chunk_size: usize) -> std::slice::Chunks<u8> {
+        self.data.chunks(chunk_size)
+    }
+    pub fn chunks_mut(&mut self, chunk_size: usize) -> std::slice::ChunksMut<u8> {
+        self.data.chunks_mut(chunk_size)
+    }
+    pub fn chunks_exact(&self, chunk_size: usize) -> std::slice::ChunksExact<u8> {
+        self.data.chunks_exact(chunk_size)
+    }
+    pub fn chunks_exact_mut(&mut self, chunk_size: usize) -> std::slice::ChunksExactMut<u8> {
+        self.data.chunks_exact_mut(chunk_size)
+    }
+    pub fn rchunks(&self, chunk_size: usize) -> std::slice::RChunks<u8> {
+        self.data.rchunks(chunk_size)
+    }
+    pub fn rchunks_mut(&mut self, chunk_size: usize) -> std::slice::RChunksMut<u8> {
+        self.data.rchunks_mut(chunk_size)
+    }
+    pub fn rchunks_exact(&self, chunk_size: usize) -> std::slice::RChunksExact<u8> {
+        self.data.rchunks_exact(chunk_size)
+    }
+    pub fn rchunks_exact_mut(&mut self, chunk_size: usize) -> std::slice::RChunksExactMut<u8> {
+        self.data.rchunks_exact_mut(chunk_size)
+    }
+    pub fn rows(&self) -> std::slice::Chunks<u8> {
+        self.data.chunks(self.ncol)
+    }
+    pub fn rows_mut(&mut self) -> std::slice::ChunksMut<u8> {
+        self.data.chunks_mut(self.ncol)
+    }
+    pub fn windows(&self, size: usize) -> std::slice::Windows<u8> {
+        self.data.windows(size)
+    }
 }
 impl<'a> std::fmt::Debug for Image<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -78,12 +120,20 @@ impl<'a> std::fmt::Debug for Image<'a> {
         s.push_str(&format!("size: {}x{}\n", self.nrow, self.ncol));
         s.push_str(&format!("depth: {}\n", self.depth));
         s.push_str(&format!("colour: {:?}\n", self.colour));
-        for i in 0..self.nrow {
-            s.push_str(&format!(
-                "{:02x?}\n",
-                &self.data[i * self.ncol..(i + 1) * self.ncol]
-            ));
+        for row in self.rows() {
+            s.push_str(&format!("{:02x?}\n", row));
         }
         write!(f, "{}", s)
+    }
+}
+impl<'a> std::ops::Index<usize> for Image<'a> {
+    type Output = [u8];
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index * self.ncol..(index + 1) * self.ncol]
+    }
+}
+impl<'a> std::ops::IndexMut<usize> for Image<'a> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.data[index * self.ncol..(index + 1) * self.ncol]
     }
 }

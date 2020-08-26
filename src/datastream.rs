@@ -30,7 +30,8 @@ use std::convert::TryInto;
 // PNG SIGNATURE.
 pub(crate) const PNG_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
 // IEND CHUNK.
-pub(crate) const IEND_CHUNK: [u8; 12] = [0, 0, 0, 0, b'I', b'E', b'N', b'D', 0xAE, 0x42, 0x60, 0x82];
+pub(crate) const IEND_CHUNK: [u8; 12] =
+    [0, 0, 0, 0, b'I', b'E', b'N', b'D', 0xAE, 0x42, 0x60, 0x82];
 
 //
 const IHDR: [u8; 4] = [b'I', b'H', b'D', b'R'];

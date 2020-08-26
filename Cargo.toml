@@ -1,6 +1,6 @@
 [package]
 name = "devpng"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["TimeEngineer <chenpascal241096@yahoo.fr>"]
 edition = "2018"
 description = "PNG parser"
