@@ -30,8 +30,8 @@ fn main() -> Result<(), String> {
     // Access Image.
     let img = png.image();
     // Modify image.
-    for i in 0..img.nrow * img.ncol {
-        img.data[i] = !img.data[i];
+    for x in img.iter_mut() {
+        *x = !*x;
     }
     // Store.
     png.store("img.png")?;
@@ -70,8 +70,8 @@ fn main() -> Result<(), String> {
     let img = cache.image();
    
     // Modify image.
-    for i in 0..img.nrow * img.ncol {
-        img.data[i] = !img.data[i];
+    for x in img.iter_mut() {
+        *x = !*x;
     }
     // Store.
     let png = datastream.rebuild(&mut Some(&mut cache));
