@@ -29,11 +29,11 @@ impl FiltCache {
             ColourType::RGBA => 4,
         };
         let width = match bit_depth {
-            1 => (width as usize) >> 3 + if width % 8 == 0 { 0 } else { 1 },
-            2 => (width as usize) >> 2 + if width % 4 == 0 { 0 } else { 1 },
-            4 => (width as usize) >> 1 + if width % 2 == 0 { 0 } else { 1 },
+            1 => (width as usize) / 8 + if width % 8 == 0 { 0 } else { 1 },
+            2 => (width as usize) / 4 + if width % 4 == 0 { 0 } else { 1 },
+            4 => (width as usize) / 2 + if width % 2 == 0 { 0 } else { 1 },
             8 => width as usize,
-            16 => (width as usize) << 1,
+            16 => (width as usize) * 2,
             _ => unreachable!(),
         } * npix;
         let height = height as usize;
@@ -114,11 +114,11 @@ impl FiltCache {
             ColourType::RGBA => 4,
         };
         let width = ((match self.bit_depth {
-            1 => self.width << 3,
-            2 => self.width << 2,
-            4 => self.width << 1,
+            1 => self.width * 8,
+            2 => self.width * 4,
+            4 => self.width * 2,
             8 => self.width,
-            16 => self.width >> 1,
+            16 => self.width / 2,
             _ => unreachable!(),
         } / npix) as u32)
             .to_be_bytes();

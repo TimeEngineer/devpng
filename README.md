@@ -22,12 +22,13 @@ Examples
 ## Want to modify an image ?
 ```Rust
 use devpng::prelude::PNG;
+
 fn main() -> Result<(), String> {
     // Load.
     let mut buf = std::fs::read("img.png")
         .expect("Couldn't read the file.");
     let mut png = PNG::load(&mut buf)?;
-    // Access Image.
+    // Access image.
     let img = png.image();
     // Modify image.
     for x in img.iter_mut() {
@@ -41,31 +42,45 @@ fn main() -> Result<(), String> {
 
 ## Want to create an image ?
 ```Rust
-use devpng::prelude::{ColourType, Image, PNG};
+use devpng::prelude::{ColourType, Image, PNG, Point};
+
 fn main() -> Result<(), String> {
-    let mut data = [255, 0, 0, 0, 0, 0];
+    let mut data = vec![255; 800 * 200];
     let img = Image::new(&mut data[..])
-        .set_ncol(6)
-        .set_nrow(1)
+        .set_ncol(800) // 200
+        .set_nrow(200)
         .set_depth(8)
-        .set_colour(ColourType::RGB);
+        .set_colour(ColourType::RGBA);
     let mut buf = Vec::new();
+
     let mut png = PNG::from_image(&mut buf, &img);
+    let mut img = png.image();
+
+    for i in 0..50 {
+        let center = Point { x: 100, y: 100 };
+        let radius = 80 - i as i32;
+        let colour = &[0, (255 - i * 5) as u8, (255 - i * 5) as u8, 255];
+        img.plot_circle(center, radius, colour);
+    }
+
     // Store.
     png.store("img.png")?;
     Ok(())
 }
 ```
 
+![alt text](https://github.com/TimeEngineer/devpng/blob/master/img/img.png "img")
+
 ## Want low level access ?
 ```Rust
 use devpng::prelude::DataStreamMut;
+
 fn main() -> Result<(), String> {
     // Load.
     let mut buf = std::fs::read("img.png")
         .expect("Couldn't read the file.");
     let mut datastream = DataStreamMut::from(&mut buf)?;
-    // Access Image.
+    // Access image.
     let mut cache = datastream.idat()?;
     let img = cache.image();
    
