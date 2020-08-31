@@ -42,6 +42,204 @@ impl<'a> Image<'a> {
             data,
         }
     }
+    fn convert_identity(&mut self, img: &Image) {
+        for (row0, row1) in self.rows_mut().zip(img.rows()) {
+            let min = std::cmp::min(row0.len(), row1.len());
+            (&mut row0[..min]).copy_from_slice(&row1[..min])
+        }
+    }
+    // assert!(n < m).
+    fn convert_n_from_m(&mut self, img: &Image, n: usize, m: usize) {
+        for (row0, row1) in self.rows_mut().zip(img.rows()) {
+            let len0 = row0.len();
+            let len1 = row1.len();
+            let row0 = &mut row0[..len0];
+            let row1 = &row1[..len1];
+            for (i0, i1) in (0..len0).step_by(n).zip((0..len1).step_by(m)) {
+                (&mut row0[i0..i0 + n]).copy_from_slice(&row1[i1..i1 + n]);
+            }
+        }
+    }
+    // assert!(n < m).
+    fn convert_m_from_n(&mut self, img: &Image, m: usize, n: usize) {
+        for (row0, row1) in self.rows_mut().zip(img.rows()) {
+            let len0 = row0.len();
+            let len1 = row1.len();
+            let row0 = &mut row0[..len0];
+            let row1 = &row1[..len1];
+            for (i0, i1) in (0..len0).step_by(m).zip((0..len1).step_by(n)) {
+                (&mut row0[i0..i0 + n]).copy_from_slice(&row1[i1..i1 + n]);
+                for left in &mut row0[i0 + n..i0 + m] {
+                    *left = 255;
+                }
+            }
+        }
+    }
+    fn convert_g8_from_rgb8(&mut self, img: &Image) {
+        let step = match img.colour {
+            ColourType::RGB => 3,
+            ColourType::RGBA => 4,
+            _ => unreachable!(),
+        };
+        for (row0, row1) in self.rows_mut().zip(img.rows()) {
+            let len0 = row0.len();
+            let len1 = row1.len();
+            let row0 = &mut row0[..len0];
+            let row1 = &row1[..len1];
+            for (i0, i1) in (0..len0).zip((0..len1).step_by(step)) {
+                let sum = (row1[i1] as u16) + (row1[i1 + 1] as u16) + (row1[i1 + 2] as u16);
+                row0[i0] = (sum / 3) as u8;
+            }
+        }
+    }
+    fn convert_ga8_from_rgb8(&mut self, img: &Image) {
+        for (row0, row1) in self.rows_mut().zip(img.rows()) {
+            let len0 = row0.len();
+            let len1 = row1.len();
+            let row0 = &mut row0[..len0];
+            let row1 = &row1[..len1];
+            for (i0, i1) in (0..len0).step_by(2).zip((0..len1).step_by(3)) {
+                let sum = (row1[i1] as u16) + (row1[i1 + 1] as u16) + (row1[i1 + 2] as u16);
+                row0[i0] = (sum / 3) as u8;
+                row0[i0 + 1] = 255;
+            }
+        }
+    }
+    fn convert_ga8_from_rgba8(&mut self, img: &Image) {
+        for (row0, row1) in self.rows_mut().zip(img.rows()) {
+            let len0 = row0.len();
+            let len1 = row1.len();
+            let row0 = &mut row0[..len0];
+            let row1 = &row1[..len1];
+            for (i0, i1) in (0..len0).step_by(2).zip((0..len1).step_by(4)) {
+                let sum = (row1[i1] as u16) + (row1[i1 + 1] as u16) + (row1[i1 + 2] as u16);
+                row0[i0] = (sum / 3) as u8;
+                row0[i0 + 1] = row1[i1 + 3];
+            }
+        }
+    }
+    fn convert_rgb8_from_g8(&mut self, img: &Image) {
+        let step = match img.colour {
+            ColourType::Greyscale => 1,
+            ColourType::GreyscaleAlpha => 2,
+            _ => unreachable!(),
+        };
+        for (row0, row1) in self.rows_mut().zip(img.rows()) {
+            let len0 = row0.len();
+            let len1 = row1.len();
+            let row0 = &mut row0[..len0];
+            let row1 = &row1[..len1];
+            for (i0, i1) in (0..len0).step_by(3).zip((0..len1).step_by(step)) {
+                let pix = row1[i1];
+                row0[i0] = pix;
+                row0[i0 + 1] = pix;
+                row0[i0 + 2] = pix;
+            }
+        }
+    }
+    fn convert_rgba8_from_g8(&mut self, img: &Image) {
+        for (row0, row1) in self.rows_mut().zip(img.rows()) {
+            let len0 = row0.len();
+            let len1 = row1.len();
+            let row0 = &mut row0[..len0];
+            let row1 = &row1[..len1];
+            for (i0, i1) in (0..len0).step_by(4).zip(0..len1) {
+                let pix = row1[i1];
+                row0[i0] = pix;
+                row0[i0 + 1] = pix;
+                row0[i0 + 2] = pix;
+                row0[i0 + 3] = 255;
+            }
+        }
+    }
+    fn convert_rgba8_from_ga8(&mut self, img: &Image) {
+        for (row0, row1) in self.rows_mut().zip(img.rows()) {
+            let len0 = row0.len();
+            let len1 = row1.len();
+            let row0 = &mut row0[..len0];
+            let row1 = &row1[..len1];
+            for (i0, i1) in (0..len0).step_by(4).zip((0..len1).step_by(2)) {
+                let pix = row1[i1];
+                row0[i0] = pix;
+                row0[i0 + 1] = pix;
+                row0[i0 + 2] = pix;
+                row0[i0 + 3] = row1[i1 + 1];
+            }
+        }
+    }
+    pub fn from_image(mut self, img: &Image) -> Self {
+        match (self.depth, img.depth, self.colour, img.colour) {
+            // Identity.
+            (1, 1, ColourType::Greyscale, ColourType::Greyscale)
+            | (2, 2, ColourType::Greyscale, ColourType::Greyscale)
+            | (4, 4, ColourType::Greyscale, ColourType::Greyscale)
+            | (8, 8, ColourType::Greyscale, ColourType::Greyscale)
+            | (16, 16, ColourType::Greyscale, ColourType::Greyscale)
+            | (8, 8, ColourType::RGB, ColourType::RGB)
+            | (16, 16, ColourType::RGB, ColourType::RGB)
+            | (1, 1, ColourType::Indexed, ColourType::Indexed)
+            | (2, 2, ColourType::Indexed, ColourType::Indexed)
+            | (4, 4, ColourType::Indexed, ColourType::Indexed)
+            | (8, 8, ColourType::Indexed, ColourType::Indexed)
+            | (8, 8, ColourType::GreyscaleAlpha, ColourType::GreyscaleAlpha)
+            | (16, 16, ColourType::GreyscaleAlpha, ColourType::GreyscaleAlpha)
+            | (8, 8, ColourType::RGBA, ColourType::RGBA)
+            | (16, 16, ColourType::RGBA, ColourType::RGBA) => {
+                self.convert_identity(img);
+            }
+            // BitDepth 8 | 8
+            (8, 8, ColourType::Greyscale, ColourType::RGB)
+            | (8, 8, ColourType::Greyscale, ColourType::RGBA) => {
+                self.convert_g8_from_rgb8(img);
+            }
+            (8, 8, ColourType::Greyscale, ColourType::GreyscaleAlpha) => {
+                self.convert_n_from_m(img, 1, 2);
+            }
+            (8, 8, ColourType::RGB, ColourType::Greyscale)
+            | (8, 8, ColourType::RGB, ColourType::GreyscaleAlpha) => {
+                self.convert_rgb8_from_g8(img);
+            }
+            (8, 8, ColourType::RGB, ColourType::RGBA) => {
+                self.convert_n_from_m(img, 3, 4);
+            }
+            (8, 8, ColourType::GreyscaleAlpha, ColourType::Greyscale) => {
+                self.convert_m_from_n(img, 2, 1);
+            }
+            (8, 8, ColourType::GreyscaleAlpha, ColourType::RGB) => {
+                self.convert_ga8_from_rgb8(img);
+            }
+            (8, 8, ColourType::GreyscaleAlpha, ColourType::RGBA) => {
+                self.convert_ga8_from_rgba8(img);
+            }
+            (8, 8, ColourType::RGBA, ColourType::Greyscale) => {
+                self.convert_rgba8_from_g8(img);
+            }
+            (8, 8, ColourType::RGBA, ColourType::RGB) => {
+                self.convert_m_from_n(img, 4, 3);
+            }
+            (8, 8, ColourType::RGBA, ColourType::GreyscaleAlpha) => {
+                self.convert_rgba8_from_ga8(img);
+            }
+            // BitDepth 16 | 16
+
+            // BitDepth 8 | 16
+            (8, 16, ColourType::Greyscale, ColourType::Greyscale)
+            | (8, 16, ColourType::RGB, ColourType::RGB)
+            | (8, 16, ColourType::GreyscaleAlpha, ColourType::GreyscaleAlpha)
+            | (8, 16, ColourType::RGBA, ColourType::RGBA) => {
+                self.convert_n_from_m(img, 1, 2);
+            }
+            // BitDepth 16 | 8
+            (16, 8, ColourType::Greyscale, ColourType::Greyscale)
+            | (16, 8, ColourType::RGB, ColourType::RGB)
+            | (16, 8, ColourType::GreyscaleAlpha, ColourType::GreyscaleAlpha)
+            | (16, 8, ColourType::RGBA, ColourType::RGBA) => {
+                self.convert_m_from_n(img, 2, 1);
+            }
+            _ => unimplemented!(),
+        }
+        self
+    }
     pub fn ncol(&self) -> usize {
         self.ncol
     }
