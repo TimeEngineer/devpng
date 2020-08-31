@@ -27,8 +27,9 @@
 //! ## Want to create an image ?
 //! ```
 //! use devpng::prelude::{ColourType, Image, PNG, Point};
-//! 
+//!
 //! fn main() -> Result<(), String> {
+//!     // Create.
 //!     let mut data = vec![255; 800 * 200];
 //!     let img = Image::new(&mut data[..])
 //!         .set_ncol(800) // 200
@@ -36,10 +37,10 @@
 //!         .set_depth(8)
 //!         .set_colour(ColourType::RGBA);
 //!     let mut buf = Vec::new();
-//! 
+//!
 //!     let mut png = PNG::from_image(&mut buf, &img);
 //!     let mut img = png.image();
-//! 
+//!
 //!     for i in 0..50 {
 //!         let center = Point { x: 100, y: 100 };
 //!         let radius = 80 - i as i32;

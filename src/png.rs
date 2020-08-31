@@ -26,9 +26,9 @@ impl<'a> PNG<'a> {
     }
     pub fn from_image(buf: &'a mut Vec<u8>, img: &Image) -> Self {
         let mut cache = FiltCache::from_image(img);
-        buf.clear();
         let mut ihdr = DataStreamMut::build_ihdr_with_cache(&mut cache);
         let mut idat = DataStreamMut::build_idat_with_cache(&mut cache);
+        buf.clear();
         buf.extend_from_slice(&PNG_HEADER);
         buf.append(&mut ihdr);
         buf.append(&mut idat);

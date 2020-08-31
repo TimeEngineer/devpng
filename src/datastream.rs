@@ -469,7 +469,7 @@ impl<'a> DataStreamMut<'a> {
         [&length[..], &chunk[..], &ihdr, &crc.checksum()[..]].concat()
     }
     pub(crate) fn build_idat_with_cache(cache: &mut FiltCache) -> Vec<u8> {
-        let idat = cache.rebuild();
+        let idat = cache.idat();
         let length = (idat.len() as u32).to_be_bytes();
         let chunk = IDAT;
         let mut crc = Crc::new();
@@ -482,7 +482,7 @@ impl<'a> DataStreamMut<'a> {
             Some(cache) => Self::build_ihdr_with_cache(cache),
             None => self.ihdr.to_vec(),
         };
-        let mut encoded = match cache {
+        let mut idat = match cache {
             Some(cache) => Self::build_idat_with_cache(cache),
             None => {
                 let mut idat = Vec::new();
@@ -540,7 +540,7 @@ impl<'a> DataStreamMut<'a> {
             v_out.extend_from_slice(chunk);
         }
         // IDAT.
-        v_out.append(&mut encoded);
+        v_out.append(&mut idat);
         // Others.
         if let Some(chunk) = &self.time {
             v_out.extend_from_slice(chunk);

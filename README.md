@@ -28,12 +28,15 @@ fn main() -> Result<(), String> {
     let mut buf = std::fs::read("img.png")
         .expect("Couldn't read the file.");
     let mut png = PNG::load(&mut buf)?;
+
     // Access image.
     let img = png.image();
+    
     // Modify image.
     for x in img.iter_mut() {
         *x = !*x;
     }
+    
     // Store.
     png.store("img.png")?;
     Ok(())
@@ -45,6 +48,7 @@ fn main() -> Result<(), String> {
 use devpng::prelude::{ColourType, Image, PNG, Point};
 
 fn main() -> Result<(), String> {
+    // Create.
     let mut data = vec![255; 800 * 200];
     let img = Image::new(&mut data[..])
         .set_ncol(800) // 200
@@ -80,6 +84,7 @@ fn main() -> Result<(), String> {
     let mut buf = std::fs::read("img.png")
         .expect("Couldn't read the file.");
     let mut datastream = DataStreamMut::from(&mut buf)?;
+
     // Access image.
     let mut cache = datastream.idat()?;
     let img = cache.image();
@@ -88,6 +93,7 @@ fn main() -> Result<(), String> {
     for x in img.iter_mut() {
         *x = !*x;
     }
+    
     // Store.
     let png = datastream.rebuild(&mut Some(&mut cache));
     std::fs::write("img.png", png)

@@ -130,7 +130,7 @@ impl FiltCache {
         ihdr.extend_from_slice(&[0, 0, 0]);
         ihdr
     }
-    pub fn rebuild(&mut self) -> Vec<u8> {
+    pub fn idat(&mut self) -> Vec<u8> {
         self.filt();
         let (_, filt) = self.data.split_at(self.height * self.width);
         zlib_encode(filt, BlockType::Fixed, &mut self.cache)
